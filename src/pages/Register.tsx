@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MACEDONIAN_CITIES } from '@/data/mockData';
+import { useNavigate } from 'react-router-dom';
 
 const Register: React.FC = () => {
   const { toast } = useToast();
@@ -16,11 +17,10 @@ const Register: React.FC = () => {
   const [city, setCity] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
+  const navigate = useNavigate();
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Simple validation
     if (password !== confirmPassword) {
       toast({
         title: "Грешка",
@@ -29,17 +29,46 @@ const Register: React.FC = () => {
       });
       return;
     }
-    
-    // Mock registration - will be replaced with actual authentication
-    if (name && email && city && password) {
+
+    if (!name || !email || !city || !password) {
+      toast({
+        title: "Грешка",
+        description: "Пополнете ги сите полиња",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          city,
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Регистрацијата не беше успешна");
+      }
+
       toast({
         title: "Успешна регистрација",
         description: "Добредојдовте во Добри Сосед!",
       });
-    } else {
+
+      navigate('/login');
+
+    } catch (err: any) {
       toast({
         title: "Грешка",
-        description: "Пополнете ги сите полиња",
+        description: err.message || "Настана проблем при регистрацијата.",
         variant: "destructive",
       });
     }

@@ -40,7 +40,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const checkBackendConnection = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/donations');
+        const response = await fetch(import.meta.env.VITE_HOST+'/api/donations');
         if (response.ok) {
           setApiIntegrated(true);
         } else {
@@ -81,7 +81,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
           }
           
           // Fetch from API
-          const response = await fetch(`http://localhost:5000/api/donations?${params}`);
+          const response = await fetch(import.meta.env.VITE_HOST+`/api/donations?${params}`);
           const data = await response.json();
           
           setDonations(data.donations);
@@ -165,7 +165,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
     try {
       if (apiIntegrated) {
         // Send to API
-        const response = await fetch('http://localhost:5000/api/donations', {
+        const response = await fetch(import.meta.env.VITE_HOST+'/api/donations', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

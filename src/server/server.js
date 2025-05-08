@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const Donation = require('./models/donation');
 const Message = require('./models/message');
 const dotenv = require('dotenv');
+const routes = require('./routes/routes');
 
 // Load environment variables
 dotenv.config();
@@ -89,121 +90,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// API Routes
-// Donations routes
-app.get('/api/donations', async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 8;
-    const skip = (page - 1) * limit;
-    
-    // Apply filters if provided
-    let query = {};
-    
-    if (req.query.city) {
-      query.city = req.query.city;
-    }
-    
-    if (req.query.category) {
-      query.category = req.query.category;
-    }
-    
-    if (req.query.search) {
-      query.$or = [
-        { title: { $regex: req.query.search, $options: 'i' } },
-        { description: { $regex: req.query.search, $options: 'i' } }
-      ];
-    }
-    
-    // Get total count for pagination
-    const total = await Donation.countDocuments(query);
-    
-    // Get donations with pagination
-    const donations = await Donation.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-    
-    res.json({
-      donations,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching donations:', error);
-    res.status(500).json({ error: 'Failed to fetch donations' });
-  }
-});
-
-app.get('/api/donations/:id', async (req, res) => {
-  try {
-    const donation = await Donation.findById(req.params.id);
-    if (!donation) {
-      return res.status(404).json({ error: 'Donation not found' });
-    }
-    res.json(donation);
-  } catch (error) {
-    console.error('Error fetching donation:', error);
-    res.status(500).json({ error: 'Failed to fetch donation' });
-  }
-});
-
-app.post('/api/donations', async (req, res) => {
-  try {
-    const donation = await Donation.create(req.body);
-    res.status(201).json(donation);
-  } catch (error) {
-    console.error('Error creating donation:', error);
-    res.status(500).json({ error: 'Failed to create donation' });
-  }
-});
-
-// Messages routes
-app.get('/api/messages/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    
-    // Get all messages where the user is either sender or recipient
-    const messages = await Message.find({
-      $or: [
-        { senderId: userId },
-        { recipientId: userId }
-      ]
-    }).sort({ createdAt: -1 });
-    
-    // Group messages by conversation
-    const conversations = {};
-    
-    messages.forEach(message => {
-      const otherUserId = message.senderId === userId 
-        ? message.recipientId 
-        : message.senderId;
-      
-      if (!conversations[otherUserId]) {
-        conversations[otherUserId] = {
-          userId: otherUserId,
-          messages: [],
-          unreadCount: 0
-        };
-      }
-      
-      conversations[otherUserId].messages.push(message);
-      
-      // Count unread messages
-      if (message.recipientId === userId && !message.read) {
-        conversations[otherUserId].unreadCount += 1;
-      }
-    });
-    
-    res.json(Object.values(conversations));
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-    res.status(500).json({ error: 'Failed to fetch messages' });
-  }
-});
+app.use('/api', routes);
 
 // Start the server
 const PORT = process.env.PORT || 5000;
