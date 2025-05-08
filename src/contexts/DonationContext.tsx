@@ -1,7 +1,6 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { DonationItem } from '@/types';
-import { mockDonationItems } from '@/data/mockData';
 import { toast } from '@/components/ui/use-toast';
 
 interface DonationContextType {
@@ -34,7 +33,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [apiIntegrated, setApiIntegrated] = useState(false);
+  const [apiIntegrated, setApiIntegrated] = useState(true);
 
   // Check if backend is connected
   useEffect(() => {
@@ -56,85 +55,53 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
     checkBackendConnection();
   }, []);
 
-  // Fetch donations
-  useEffect(() => {
-    const fetchDonations = async () => {
-      setLoading(true);
-      
-      try {
-        if (apiIntegrated) {
-          // Build query parameters
-          const params = new URLSearchParams();
-          params.append('page', currentPage.toString());
-          params.append('limit', '8');
-          
-          if (selectedCity) {
-            params.append('city', selectedCity);
-          }
-          
-          if (selectedCategory) {
-            params.append('category', selectedCategory);
-          }
-          
-          if (searchQuery) {
-            params.append('search', searchQuery);
-          }
-          
-          // Fetch from API
-          const response = await fetch(import.meta.env.VITE_HOST+`/api/donations?${params}`);
-          const data = await response.json();
-          
-          setDonations(data.donations);
-          setFilteredDonations(data.donations);
-          setTotalPages(data.pagination.pages);
-        } else {
-          // Use mock data
-          setTimeout(() => {
-            let filtered = [...mockDonationItems];
-            
-            if (selectedCity) {
-              filtered = filtered.filter(item => item.city === selectedCity);
-            }
-            
-            if (selectedCategory) {
-              filtered = filtered.filter(item => item.category === selectedCategory);
-            }
-            
-            if (searchQuery) {
-              const query = searchQuery.toLowerCase();
-              filtered = filtered.filter(item => 
-                item.title.toLowerCase().includes(query) || 
-                item.description.toLowerCase().includes(query)
-              );
-            }
-            
-            // Apply pagination to mock data
-            const totalItems = filtered.length;
-            setTotalPages(Math.ceil(totalItems / 8));
-            
-            const start = (currentPage - 1) * 8;
-            const end = start + 8;
-            const paginatedItems = filtered.slice(start, end);
-            
-            setDonations(mockDonationItems);
-            setFilteredDonations(paginatedItems);
-          }, 1000);
+  const fetchDonations = async () => {
+    setLoading(true);
+
+    try {
+      if (apiIntegrated) {
+        // Build query parameters
+        const params = new URLSearchParams();
+        params.append('page', currentPage.toString());
+        params.append('limit', '8');
+
+        if (selectedCity) {
+          params.append('city', selectedCity);
         }
-        
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching donations:', err);
-        setError('Failed to fetch donations');
-        
-        // Fallback to mock data
-        setTimeout(() => {
-          setDonations(mockDonationItems);
-          setFilteredDonations(mockDonationItems.slice(0, 8));
-          setLoading(false);
-        }, 1000);
+
+        if (selectedCategory) {
+          params.append('category', selectedCategory);
+        }
+
+        if (searchQuery) {
+          params.append('search', searchQuery);
+        }
+
+        // Fetch from API
+        const response = await fetch(import.meta.env.VITE_HOST+`/api/donations?${params}`);
+        const data = await response.json();
+
+        setDonations(data.donations);
+        setFilteredDonations(data.donations);
+        setTotalPages(data.pagination.pages);
+      } else {
+        setError('Backend not available. Please check your server.');
+        setDonations([]);
+        setFilteredDonations([]);
       }
-    };
-    
+
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching donations:', err);
+      setError('Failed to fetch donations');
+
+      setTimeout(() => {
+        setLoading(false);
+      }, 1000);
+    }
+  };
+
+  useEffect(() => {
     fetchDonations();
   }, [selectedCity, selectedCategory, searchQuery, currentPage, apiIntegrated]);
 
@@ -163,33 +130,40 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
 
   const addDonation = async (donation: Omit<DonationItem, 'id' | 'createdAt'>) => {
     try {
-      if (apiIntegrated) {
-        // Send to API
-        const response = await fetch(import.meta.env.VITE_HOST+'/api/donations', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(donation),
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to create donation');
-        }
-        
-        const newDonation = await response.json();
-        setDonations(prev => [newDonation, ...prev]);
-      } else {
-        // Use mock data
-        const newDonation: DonationItem = {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+      const CONDITION_MAP = {
+        'new': 'Ново',
+        'like-new': 'Како ново',
+        'good': 'Добра',
+        'fair': 'Користено',
+        'poor': 'Лошо'
+      };
+
+      const response = await fetch(import.meta.env.VITE_HOST + '/api/donations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           ...donation,
-          id: `${donations.length + 1}-${Date.now()}`,
-          createdAt: new Date().toISOString()
-        };
-        
-        setDonations(prev => [newDonation, ...prev]);
+          userId: user.id,
+          condition: CONDITION_MAP[donation.condition as keyof typeof CONDITION_MAP],
+          images: donation.image ? [donation.image] : [],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create donation');
       }
-      
+
+      await fetchDonations()
+
+      const newDonation = await response.json();
+      setDonations(prev => [newDonation, ...prev]);
+
       toast({
         title: "Успешно додадено",
         description: "Вашата донација е објавена.",
@@ -203,6 +177,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
       });
     }
   };
+
 
   const value = {
     donations,

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Donation = require('../models/donation');
+const auth = require('../middleware/auth');
 
 // Get all donations with optional filters and pagination
 router.get('/', async (req, res) => {
@@ -52,9 +53,12 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new donation
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
     try {
-        const donation = await Donation.create(req.body);
+        const donation = await Donation.create({
+            ...req.body,
+            userId: req.user._id
+        });
         res.status(201).json(donation);
     } catch (error) {
         console.error('Error creating donation:', error);

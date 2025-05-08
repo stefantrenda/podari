@@ -32,7 +32,7 @@ const donationSchema = new mongoose.Schema({
   },
   condition: {
     type: String,
-    enum: ['Ново', 'Како ново', 'Добра', 'Користено'],
+    enum: ['Ново', 'Како ново', 'Добра', 'Користено', 'Лошо'],
     default: 'Користено'
   },
   isAvailable: {
