@@ -4,16 +4,13 @@ const router = express.Router();
 const User = require('../models/user');
 const jwt = require('jsonwebtoken');
 
-// Register a new user
 router.post('/register', async (req, res) => {
   try {
-    // Check if user with email already exists
     const existingUser = await User.findOne({ email: req.body.email });
     if (existingUser) {
       return res.status(400).json({ error: 'Корисник со овој е-маил веќе постои' });
     }
     
-    // Create new user
     const user = await User.create({
       name: req.body.name,
       email: req.body.email,
@@ -22,14 +19,12 @@ router.post('/register', async (req, res) => {
       phoneNumber: req.body.phoneNumber || ''
     });
     
-    // Generate JWT token
     const token = jwt.sign(
       { id: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
     
-    // Return user data and token (without password)
     res.status(201).json({
       token,
       user: {

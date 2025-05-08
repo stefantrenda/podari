@@ -53,17 +53,21 @@ const Register: React.FC = () => {
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Регистрацијата не беше успешна");
+        throw new Error(data.error || "Регистрацијата не беше успешна");
       }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
 
       toast({
         title: "Успешна регистрација",
         description: "Добредојдовте во Добри Сосед!",
       });
 
-      navigate('/login');
+      navigate('/');
 
     } catch (err: any) {
       toast({

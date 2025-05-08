@@ -6,24 +6,55 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from 'react-router-dom';
 
 const Login: React.FC = () => {
   const { toast } = useToast();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login - will be replaced with actual authentication
-    if (email && password) {
-      toast({
-        title: "Успешно најавување",
-        description: "Добредојдовте назад!",
-      });
-    } else {
+
+    if (!email || !password) {
       toast({
         title: "Грешка",
         description: "Внесете валидни податоци",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Најавувањето не беше успешно");
+      }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      toast({
+        title: "Успешно најавување",
+        description: `Добредојдовте назад, ${data.user.name}!`,
+      });
+
+      navigate('/');
+
+    } catch (err: any) {
+      toast({
+        title: "Грешка",
+        description: err.message || "Настана проблем при најавувањето.",
         variant: "destructive",
       });
     }
